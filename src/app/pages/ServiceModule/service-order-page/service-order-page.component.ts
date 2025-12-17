@@ -1052,8 +1052,8 @@ export class ServiceOrderPageComponent {
     );
   }
 
-  RAZOR_PAY_KEY = 'rzp_test_SO1E5ovbNuNP0B'; // Razorpay API Key
-  // RAZOR_PAY_KEY = 'rzp_live_UOLu84DuvGULjK'; // Razorpay API Key live
+  // RAZOR_PAY_KEY = 'rzp_test_SO1E5ovbNuNP0B'; // Razorpay API Key
+  RAZOR_PAY_KEY = 'rzp_live_UOLu84DuvGULjK'; // Razorpay API Key live
   selectedPaymentMethod: string = 'ONLINE'; // Default Payment Mode
 
   proceedToPay(selectedjob: any, PaymentSummary: any) {

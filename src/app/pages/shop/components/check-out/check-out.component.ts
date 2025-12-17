@@ -576,8 +576,8 @@ export class CheckOutComponent {
   // selectedPaymentMethod: string = 'ONLINE'; // Default Payment Mode
   selectedPaymentMethod: string = 'ONLINE'; // Default Payment Mode
 
-  RAZOR_PAY_KEY = 'rzp_test_SO1E5ovbNuNP0B'; // Razorpay API Key
-  // RAZOR_PAY_KEY = 'rzp_live_UOLu84DuvGULjK'; // Razorpay API Key live
+  // RAZOR_PAY_KEY = 'rzp_test_SO1E5ovbNuNP0B'; // Razorpay API Key
+  RAZOR_PAY_KEY = 'rzp_live_UOLu84DuvGULjK'; // Razorpay API Key live
   user: any;
 
   getFinalAmount(): number {
