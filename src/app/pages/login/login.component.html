@@ -200,7 +200,7 @@
         {{ statusCode }}
       </div>
       <form class="register-form" #registrationForm="ngForm" (ngSubmit)="save(registrationForm)">
-        <div class="user-type">
+        <!-- <div class="user-type">
           <label class="radio-label">
             <input type="radio" name="userType" value="home" [(ngModel)]="userType" (change)="onUserTypeChange()" />
             <span class="custom-radio"></span> Home User
@@ -209,7 +209,7 @@
             <input type="radio" name="userType" value="business" [(ngModel)]="userType" (change)="onUserTypeChange()" />
             <span class="custom-radio"></span> Business User
           </label>
-        </div>
+        </div> -->
         <div *ngIf="userType === 'business'" class="business-fields">
           <div class="form-field">
             <label *ngIf="data.CUSTOMER_NAME" class="auth-label-left">
