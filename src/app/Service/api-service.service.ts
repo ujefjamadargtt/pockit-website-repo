@@ -38,7 +38,7 @@ export class ApiServiceService {
 
   //production
   commoncode = 'https://console.pockitengineers.com/auth';
-  commonimgUrl = 'https://console.pockitengineers.com/auth/api/upload/';
+  commonimgUrl = 'https://console.pockitengineers.com/authdev/api/upload/';
   weburl = 'https://my.pockitengineers.com/'
   isLocalhost=false
 
@@ -62,16 +62,10 @@ export class ApiServiceService {
   //   commonimgUrl = 'https://1786vqrk-6787.inc1.devtunnels.ms/api/upload/';
   // isLocalhost=true
 
-  // commoncode = 'https://pn5m5nf6-8767.inc1.devtunnels.ms';
+  // commoncode = 'https://pn5m5nf6-9090.inc1.devtunnels.ms';
   // weburl = 'https://pockitapp.pockitengineers.com/'
-  // commonimgUrl = 'https://pn5m5nf6-8767.inc1.devtunnels.ms/api/upload/';
+  // commonimgUrl = 'https://pn5m5nf6-9090.inc1.devtunnels.ms/api/upload/';
   // isLocalhost = true
-  //   commoncode = 'https://vcq8df4r-6787.inc1.devtunnels.ms';
-  //   weburl = 'https://pockitapp.pockitengineers.com/'
-  //   commonimgUrl = 'https://vcq8df4r-6787.inc1.devtunnels.ms/api/upload/';
-  // isLocalhost=true
-
-
   commonapikey = 'WGykEs0b241gNKcDshYU9C4I0Ft1JoSb';
   commonapplicationkey = 'ZU63HDzj79PEFzz5';
   url = `${this.commoncode}/`;

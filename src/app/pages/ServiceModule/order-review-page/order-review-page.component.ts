@@ -23,7 +23,7 @@ export class OrderReviewPageComponent {
   isLoading: boolean = false;
   isLoadingPayment: boolean = false;
   customertype: any = this.apiservice.getCustomerType();
-  selectedPaymentMethod: string = 'ONLINE'; 
+  selectedPaymentMethod: string = 'ONLINE';
   userID: any = this.apiservice.getUserId();
   user: any;
   coupons: any = [];
@@ -36,7 +36,7 @@ export class OrderReviewPageComponent {
     paymentSummary: false,
   };
   updateSEO() {
-    this.titleService.setTitle('Review Your Order - PockIT Web');
+    this.titleService.setTitle('Review Your Order - Pockit Web');
     this.metaService.updateTag({
       name: 'description',
       content:
@@ -49,12 +49,12 @@ export class OrderReviewPageComponent {
     });
     this.metaService.updateTag({
       property: 'og:title',
-      content: 'Review Your Order - PockIT Web',
+      content: 'Review Your Order - Pockit Web',
     });
     this.metaService.updateTag({
       property: 'og:description',
       content:
-        'Verify your cart items and confirm your order details at PockIT Web before secure checkout.',
+        'Verify your cart items and confirm your order details at Pockit Web before secure checkout.',
     });
     this.metaService.updateTag({
       property: 'og:url',
@@ -62,12 +62,12 @@ export class OrderReviewPageComponent {
     });
     this.metaService.updateTag({
       name: 'twitter:title',
-      content: 'Review Your Order - PockIT Web',
+      content: 'Review Your Order - Pockit Web',
     });
     this.metaService.updateTag({
       name: 'twitter:description',
       content:
-        'Check your order details before completing the purchase at PockIT Web. Fast and secure checkout.',
+        'Check your order details before completing the purchase at Pockit Web. Fast and secure checkout.',
     });
     this.metaService.updateTag({
       name: 'twitter:card',
@@ -111,11 +111,11 @@ export class OrderReviewPageComponent {
       const doc = document.documentElement;
       const body = document.body;
       if (doc.scrollHeight <= window.innerHeight) {
-        body.style.overflowY = 'auto'; 
-        body.style.paddingRight = '0px'; 
+        body.style.overflowY = 'auto';
+        body.style.paddingRight = '0px';
       } else {
-        body.style.overflowY = ''; 
-        body.style.paddingRight = ''; 
+        body.style.overflowY = '';
+        body.style.paddingRight = '';
       }
     }, 300);
   }
@@ -140,7 +140,7 @@ export class OrderReviewPageComponent {
     const remainingDaysAfterYears = days % 365;
     const months = Math.floor(remainingDaysAfterYears / 30);
     const remainingDays = remainingDaysAfterYears % 30;
-    let result: string[] = []; 
+    let result: string[] = [];
     if (years > 0) {
       result.push(`${years} ${years > 1 ? 'yrs' : 'year'}`);
     }
@@ -209,7 +209,7 @@ export class OrderReviewPageComponent {
       .subscribe(
         (response) => {
           if (response?.code === 200) {
-            this.coupons = response.data; 
+            this.coupons = response.data;
             this.couponcount = this.coupons.length;
           } else {
             this.couponcount = 0;
@@ -255,7 +255,7 @@ export class OrderReviewPageComponent {
     }
   }
   removeCoupon(event: Event, coupon: any) {
-    event.stopPropagation(); 
+    event.stopPropagation();
     this.coupons = this.coupons.filter(
       (c: any) => c.COUPON_ID !== coupon.COUPON_ID
     );
@@ -323,8 +323,7 @@ export class OrderReviewPageComponent {
   toggleAccordion(section: string) {
     this.orderDetailsVisible[section] = !this.orderDetailsVisible[section];
   }
-
-  // RAZOR_PAY_KEY = 'rzp_test_SO1E5ovbNuNP0B'; // Razorpay API Keytest
+  // RAZOR_PAY_KEY = 'rzp_test_SJw4Sq4w5kXdZn';
   RAZOR_PAY_KEY = 'rzp_live_UOLu84DuvGULjK'; // Razorpay API Key live
 
   getFinalAmount(): number {
@@ -353,7 +352,7 @@ export class OrderReviewPageComponent {
       };
       this.apiservice.CreateOrder(payload).subscribe((response: any) => {
         if (response?.code === 200) {
-          this.cartService.fetchAndUpdateCartDetails(this.userID); 
+          this.cartService.fetchAndUpdateCartDetails(this.userID);
           if (this.customertype === 'B') {
             this.message.success('Order placed successfully.', '');
           } else {
@@ -377,7 +376,7 @@ export class OrderReviewPageComponent {
         if (responserzp?.code === 200 && responserzp.data.amount) {
           const options = {
             key: this.RAZOR_PAY_KEY,
-            amount: finalAmount * 100, 
+            amount: finalAmount * 100,
             currency: 'INR',
             name: this.user.NAME,
             order_id: responserzp.data.id,
@@ -418,7 +417,7 @@ export class OrderReviewPageComponent {
                     };
                     this.apiservice.CreateOrder(payload).subscribe((response: any) => {
                       if (response?.code === 200) {
-                        this.cartService.fetchAndUpdateCartDetails(this.userID); 
+                        this.cartService.fetchAndUpdateCartDetails(this.userID);
                         if (this.customertype === 'B') {
                         } else {
                           this.message.success('Order placed successfully', '');
@@ -433,8 +432,8 @@ export class OrderReviewPageComponent {
                       ''
                     );
                     setTimeout(() => {
-                      this.router.navigate(['/service']); 
-                    }, 1000); 
+                      this.router.navigate(['/service']);
+                    }, 1000);
                   } else {
                     this.message.error(
                       'Payment successful, but order processing failed. Please contact support.',
