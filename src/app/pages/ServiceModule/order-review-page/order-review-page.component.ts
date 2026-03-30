@@ -7,6 +7,7 @@ import { ApiServiceService } from 'src/app/Service/api-service.service';
 declare var Razorpay: any;
 import { Meta, Title } from '@angular/platform-browser';
 import { CartService } from 'src/app/Service/cart.service';
+import { environment } from 'src/environments/environment';
 @Component({
   selector: 'app-order-review-page',
   templateUrl: './order-review-page.component.html',
@@ -34,7 +35,9 @@ export class OrderReviewPageComponent {
     reschedulePolicy: false,
     cancelPolicy: false,
     paymentSummary: false,
+    walletSummary: false,
   };
+  walletAmount: number = 0;
   updateSEO() {
     this.titleService.setTitle('Review Your Order - Pockit Web');
     this.metaService.updateTag({
@@ -106,18 +109,13 @@ export class OrderReviewPageComponent {
       this.cartID = serviceId;
       this.fetchOrderReviewDetails(serviceId);
       this.getCustomers();
+      this.getWalletAmount();
     }
     setTimeout(() => {
-      const doc = document.documentElement;
-      const body = document.body;
-      if (doc.scrollHeight <= window.innerHeight) {
-        body.style.overflowY = 'auto';
-        body.style.paddingRight = '0px';
-      } else {
-        body.style.overflowY = '';
-        body.style.paddingRight = '';
-      }
-    }, 300);
+      window.scrollTo(0, 0);
+      document.body.style.overflowY = 'auto';
+      document.body.style.paddingRight = '0px';
+    }, 500);
   }
   setMaxCharLengthBasedOnScreen(): void {
     const screenWidth = window.innerWidth;
@@ -152,6 +150,12 @@ export class OrderReviewPageComponent {
     }
     return result.length > 0 ? result.join(' ') : '-';
   }
+  calculateExpirationDate(days: number): string {
+    if (!days || isNaN(days)) {
+      return '-';
+    }
+    return 'Valid upto ' + moment().add(days, 'days').format('DD/MMM/YY');
+  }
   formatTime(timeString: string): string {
     if (!timeString) return 'N/A';
     const [hours, minutes, seconds] = timeString.split(':').map(Number);
@@ -175,6 +179,21 @@ export class OrderReviewPageComponent {
         (error) => {
         }
       );
+  }
+  getWalletAmount() {
+    const data = {
+      CUSTOMER_ID: this.userID,
+      pageIndex: 0,
+      pageSize: 5,
+      sortKey: '',
+      sortValue: '',
+      filter: ' AND CUSTOMER_ID = ' + this.userID
+    };
+    this.apiservice.getCustomerWallet(data).subscribe((res: any) => {
+      if (res && res.code === 200 && res.data) {
+        this.walletAmount = Number(res.data[0]?.AVAILABLE_BALANCE || res?.AVAILABLE_BALANCE || 0);
+      }
+    });
   }
   loadFullPage: boolean = false;
   fetchOrderReviewDetails(serviceId: any) {
@@ -241,6 +260,7 @@ export class OrderReviewPageComponent {
         COUNTRY_ID: this.countryID,
         COUPON_CODE: this.selectedCoupon.COUPON_CODE,
         TYPE: 'S',
+        TERRITORY_ID: this.TERRITORY_ID
       };
       this.apiservice.ApplyCoupan(data).subscribe((response: any) => {
         if (response?.code === 200) {
@@ -323,9 +343,7 @@ export class OrderReviewPageComponent {
   toggleAccordion(section: string) {
     this.orderDetailsVisible[section] = !this.orderDetailsVisible[section];
   }
-  // RAZOR_PAY_KEY = 'rzp_test_SJw4Sq4w5kXdZn';
-  RAZOR_PAY_KEY = 'rzp_live_UOLu84DuvGULjK'; // Razorpay API Key live
-
+  RAZOR_PAY_KEY = environment.razorPayKey;
   getFinalAmount(): number {
     const cartInfo = this.OrderReviewDetails?.CART_INFO[0]?.TOTAL_AMOUNT;
     return cartInfo
@@ -363,20 +381,89 @@ export class OrderReviewPageComponent {
           this.message.error('Failed to place order. Please try again.', '');
         }
       });
+    } else if (this.selectedPaymentMethod === 'WALLET' && this.walletAmount >= finalAmount) {
+      const body = {
+        CART_ID: cartId,
+        ORDER_ID: null,
+        CUSTOMER_ID: this.userID,
+        MOBILE_NUMBER: this.user?.MOBILE_NO,
+        PAYMENT_FOR: 'O',
+        PAYMENT_MODE: 'W',
+        PAYMENT_TYPE: 'W',
+        TRANSACTION_DATE: moment().format('YYYY-MM-DD'),
+        TRANSACTION_ID: 'WALLET-' + Date.now(),
+        TRANSACTION_STATUS: 'Success',
+        TRANSACTION_AMOUNT: finalAmount,
+        PAYLOAD: { method: 'WALLET' },
+        RESPONSE_DATA: { status: 'Success' },
+        RESPONSE_CODE: 200,
+        MERCHENT_ID: 'WALLET',
+        RESPONSE_MESSAGE: 'Transaction success',
+        CLIENT_ID: 1,
+        TERRITORYID: cartInfo?.TERRITORY_ID,
+      };
+      this.apiservice.addPaymentTransactions(body).subscribe((res: any) => {
+        if (res?.code === 200) {
+          const payload = {
+            CART_ID: cartId,
+            PAYMENT_METHOD: 'WALLET',
+            CUSTOMER_ID: this.userID,
+            ADDRESS_ID: cartInfo?.ADDRESS_ID,
+            TERRITORYID: cartInfo?.TERRITORY_ID,
+            TYPE: 'S',
+            IS_WALLET_USED: true
+          };
+          this.apiservice.CreateOrder(payload).subscribe((response: any) => {
+            if (response?.code === 200) {
+              this.cartService.fetchAndUpdateCartDetails(this.userID);
+              this.message.success('Order placed successfully using Wallet.', '');
+              this.router.navigate(['/service']);
+            } else {
+              this.message.error(response?.message || 'Failed to place order. Please try again.', '');
+            }
+          });
+        } else {
+          this.message.error('Failed to record wallet transaction.', '');
+        }
+      });
     } else {
+      // ONLINE or WALLET with insufficient balance
+      const isHybrid = this.selectedPaymentMethod === 'WALLET' && this.walletAmount < finalAmount;
+      const payableAmount = isHybrid ? (finalAmount - this.walletAmount) : finalAmount;
       var dataForRzpOrder = {
         CART_ID: cartId,
         ORDER_ID: 0,
         CUSTOMER_ID: this.user?.ID,
         JOB_CARD_ID: 0,
         PAYMENT_FOR: "O",
-        amount: finalAmount * 100
+        amount: payableAmount * 100
       }
       this.apiservice.createRazorpayOrdertoRzp(dataForRzpOrder).subscribe((responserzp: any) => {
-        if (responserzp?.code === 200 && responserzp.data.amount) {
+        if (responserzp?.code === 200 && !responserzp.data) {
+          const payload = {
+            CART_ID: cartId,
+            PAYMENT_METHOD: isHybrid ? 'WALLET' : 'ONLINE',
+            CUSTOMER_ID: this.userID,
+            ADDRESS_ID: cartInfo?.ADDRESS_ID,
+            TERRITORYID: cartInfo?.TERRITORY_ID,
+            TYPE: 'S',
+            IS_WALLET_USED: isHybrid
+          };
+          this.apiservice.CreateOrder(payload).subscribe((response: any) => {
+            if (response?.code === 200) {
+              this.cartService.fetchAndUpdateCartDetails(this.userID);
+              this.message.success('Order placed successfully.', '');
+              this.router.navigate(['/service']);
+            } else {
+              this.message.error('Failed to place order. Please try again.', '');
+            }
+          });
+          return;
+        }
+        if (responserzp?.code === 200 && responserzp.data?.amount) {
           const options = {
             key: this.RAZOR_PAY_KEY,
-            amount: finalAmount * 100,
+            amount: payableAmount * 100,
             currency: 'INR',
             name: this.user.NAME,
             order_id: responserzp.data.id,
@@ -393,7 +480,7 @@ export class OrderReviewPageComponent {
                 TRANSACTION_DATE: moment().format('YYYY-MM-DD'),
                 TRANSACTION_ID: data.razorpay_payment_id,
                 TRANSACTION_STATUS: 'Success',
-                TRANSACTION_AMOUNT: finalAmount,
+                TRANSACTION_AMOUNT: payableAmount,
                 PAYLOAD: options,
                 RESPONSE_DATA: data,
                 RESPONSE_CODE: 200,
@@ -402,45 +489,31 @@ export class OrderReviewPageComponent {
                 CLIENT_ID: 1,
                 TERRITORYID: cartInfo?.TERRITORY_ID,
               };
-              this.apiservice
-                .addPaymentTransactions(body)
-                .subscribe((response: any) => {
-                  if (response?.code === 200) {
-                    const payload = {
-                      CART_ID: cartId,
-                      PAYMENT_METHOD: 'ONLINE',
-                      CUSTOMER_ID: this.userID,
-                      ADDRESS_ID: cartInfo?.ADDRESS_ID,
-                      TERRITORYID: cartInfo?.TERRITORY_ID,
-                      Razorpay_ID: responserzp.data.id,
-                      TYPE: 'S',
-                    };
-                    this.apiservice.CreateOrder(payload).subscribe((response: any) => {
-                      if (response?.code === 200) {
-                        this.cartService.fetchAndUpdateCartDetails(this.userID);
-                        if (this.customertype === 'B') {
-                        } else {
-                          this.message.success('Order placed successfully', '');
-                        }
-                        this.router.navigate(['/service']);
-                      } else {
-                        this.message.error('Failed to place order. Please try again.', '');
-                      }
-                    });
-                    this.message.success(
-                      'Payment successful. Your order has been placed!',
-                      ''
-                    );
-                    setTimeout(() => {
+              this.apiservice.addPaymentTransactions(body).subscribe((response: any) => {
+                if (response?.code === 200) {
+                  const payload = {
+                    CART_ID: cartId,
+                    PAYMENT_METHOD: isHybrid ? 'WALLET' : 'ONLINE',
+                    CUSTOMER_ID: this.userID,
+                    ADDRESS_ID: cartInfo?.ADDRESS_ID,
+                    TERRITORYID: cartInfo?.TERRITORY_ID,
+                    Razorpay_ID: responserzp.data.id,
+                    TYPE: 'S',
+                    IS_WALLET_USED: isHybrid
+                  };
+                  this.apiservice.CreateOrder(payload).subscribe((response: any) => {
+                    if (response?.code === 200) {
+                      this.cartService.fetchAndUpdateCartDetails(this.userID);
+                      this.message.success('Order placed successfully', '');
                       this.router.navigate(['/service']);
-                    }, 1000);
-                  } else {
-                    this.message.error(
-                      'Payment successful, but order processing failed. Please contact support.',
-                      ''
-                    );
-                  }
-                });
+                    } else {
+                      this.message.error('Failed to place order. Please try again.', '');
+                    }
+                  });
+                } else {
+                  this.message.error('Payment successful, but order processing failed. Please contact support.', '');
+                }
+              });
             },
             prefill: {
               name: this.user?.NAME,
@@ -455,11 +528,11 @@ export class OrderReviewPageComponent {
           razorpay.open();
         } else {
           this.isLoading = false;
-          this.message.error(responserzp.data.error.description, '');
+          this.message.error(responserzp?.data?.error?.description || 'Failed to create payment order.', '');
         }
       }, err => {
         this.isLoading = false;
-        this.message.error(err.error.data.error.description, '');
+        this.message.error(err?.error?.data?.error?.description || 'Something went wrong.', '');
       });
     }
   }
@@ -480,6 +553,7 @@ export class OrderReviewPageComponent {
       COUNTRY_ID: this.countryID,
       COUPON_CODE: newcopon,
       TYPE: 'S',
+      TERRITORY_ID: this.TERRITORY_ID
     };
     this.apiservice.ApplyCoupan(data).subscribe((response: any) => {
       if (response?.code === 200) {

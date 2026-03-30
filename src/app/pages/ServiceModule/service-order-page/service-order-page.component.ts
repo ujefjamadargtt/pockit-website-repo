@@ -11,6 +11,7 @@ import { CommonFunctionService } from 'src/app/Service/CommonFunctionService';
 import { LocationService } from 'src/app/Service/location.service';
 declare var google: any;
 declare var Razorpay: any;
+import { environment } from 'src/environments/environment';
 @Component({
   selector: 'app-service-order-page',
   templateUrl: './service-order-page.component.html',
@@ -131,12 +132,9 @@ export class ServiceOrderPageComponent {
       this.fetchOrderDetails(serviceId);
     }
     setTimeout(() => {
-      if (document.documentElement.scrollHeight <= window.innerHeight) {
-        document.body.style.overflowY = 'auto';
-      } else {
-        document.body.style.overflowY = '';
-      }
-    }, 300);
+      window.scrollTo(0, 0);
+      document.body.style.overflowY = 'auto';
+    }, 500);
     sessionStorage.setItem('chatopen', 'false');
   }
   setMaxCharLengthBasedOnScreen(): void {
@@ -819,9 +817,7 @@ export class ServiceOrderPageComponent {
       0
     );
   }
-  // RAZOR_PAY_KEY = 'rzp_test_SJw4Sq4w5kXdZn';
-  RAZOR_PAY_KEY = 'rzp_live_UOLu84DuvGULjK'; // Razorpay API Key live
-
+  RAZOR_PAY_KEY = environment.razorPayKey;
   selectedPaymentMethod: string = 'ONLINE';
   proceedToPay(selectedjob: any, PaymentSummary: any) {
     this.isLoadingPartPay = true;
@@ -1325,6 +1321,12 @@ export class ServiceOrderPageComponent {
       result.push(`${remainingDays} ${remainingDays > 1 ? 'days' : 'day'}`);
     }
     return result.length > 0 ? result.join(' ') : '-';
+  }
+  calculateExpirationDate(days: number): string {
+    if (!days || isNaN(days)) {
+      return '-';
+    }
+    return 'Valid upto ' + moment().add(days, 'days').format('DD/MMM/YY');
   }
   getStars(rating: string | number): string[] {
     const fullStars = Math.floor(Number(rating));
