@@ -232,6 +232,8 @@ export class LoginComponent implements OnInit {
       this.modalVisible = state;
       this.data = new registerdata();
     });
+    this.loaderService.hideLoader();
+
     this.form = this.fb.group({
       password: [
         '',
@@ -664,7 +666,7 @@ export class LoginComponent implements OnInit {
         IS_SPECIAL_CATALOGUE: false,
         ACCOUNT_STATUS: true
       };
-      
+
       this.api.userRegistration(regData).subscribe({
         next: (successCode: any) => {
           if (successCode.body.message === 'Logged in successfully.') {
@@ -703,7 +705,6 @@ export class LoginComponent implements OnInit {
             sessionStorage.setItem('userAddress', this.commonFunction.encryptdata(this.addressForm.ADDRESS_LINE_2 || ''));
             localStorage.setItem('userAddress', this.commonFunction.encryptdata(this.addressForm.ADDRESS_LINE_2 || ''));
 
-            console.log('Post-registration synchronization starting...');
             const channelNames = (user.SUBSCRIBED_CHANNELS || []).map((channel: any) => channel.CHANNEL_NAME);
             const subscribeCall = (channelNames.length > 0) ? this.api.subscribeToMultipleTopics(channelNames, successCode.body.token) : of(null);
             const addressCall = (this.userType !== 'business') ? this.api.setDefaultPincodeForHomeUser(successCode.body.token) : of(null);

@@ -15,7 +15,8 @@ import {
 import { DatePipe } from '@angular/common';
 import { ToastrService } from 'ngx-toastr';
 import { CookieService } from 'ngx-cookie-service';
-import * as moment from 'moment';
+import * as _moment from 'moment';
+const moment = (_moment as any).default || _moment;
 import { Router } from '@angular/router';
 import { ModalService } from 'src/app/Service/modal.service';
 import { FormsModule } from '@angular/forms';
@@ -70,7 +71,7 @@ export type DrawerStep =
 @Component({
   selector: 'app-home',
   templateUrl: './home.component.html',
-  styleUrls: ['./home.component.scss'], 
+  styleUrls: ['./home.component.scss'],
 })
 export class HomeComponent {
   map2: any;
@@ -85,6 +86,15 @@ export class HomeComponent {
   carouselItems: any[] = [];
   PopularServices: any[] = [];
   ServiceCateogries: any[] = [];
+  homeSearchKeyword: string = '';
+  homeShowOptionsList: boolean = false;
+  homeOptionsList: any[] = [];
+  homeFilteredOptions: any[] = [];
+  homeSearchLoading: boolean = false;
+  homePlaceholderTexts: string[] = [];
+  homeCurrentPlaceholder: string = '';
+  homePlaceholderVisible: boolean = true;
+  private homePlaceholderInterval: any;
   public commonFunction = new CommonFunctionService();
   IMAGEuRL: any;
   services = [
@@ -598,6 +608,9 @@ export class HomeComponent {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+    if (this.homePlaceholderInterval) {
+      clearInterval(this.homePlaceholderInterval);
+    }
   }
   selectedJob: any;
   onAddressChanged(): void {
@@ -724,8 +737,9 @@ export class HomeComponent {
           this.displayedCategories1 = [];
         }
         this.loadCategories1 = false;
+        this.loaderService.hideLoader();
       },
-      () => { this.loadCategories1 = false; }
+      () => { this.loadCategories1 = false; this.loaderService.hideLoader(); }
     );
   }
   viewOnlySubCategories: any[] = [];
@@ -976,10 +990,11 @@ export class HomeComponent {
     this.isLoading = false;
     this.apiservice.getPoppulerServicesForWeb(this.DefaultAddressArray['TERRITORY_ID'], this.userID, this.customertype, 'ID', 'asc').subscribe(
       (data) => {
-        if (data.data.length > 0) { this.loadService = false; this.PopularServices = data.data.slice(0, 10); }
+        if (data.data.length > 0) { this.loadService = false; this.PopularServices = data.data.slice(0, 10); this.initHomePlaceholder(); }
         else { this.loadService = false; this.PopularServices = []; }
+        this.loaderService.hideLoader();
       },
-      () => { this.loadService = false; }
+      () => { this.loadService = false; this.loaderService.hideLoader(); }
     );
   }
   loadMoreLoading: boolean = false;
@@ -999,8 +1014,9 @@ export class HomeComponent {
           this.displayedCategories = [];
           this.loadCategories = false;
         }
+        this.loaderService.hideLoader();
       },
-      () => { this.loadCategories = false; }
+      () => { this.loadCategories = false; this.loaderService.hideLoader(); }
     );
   }
   loadMore() {
@@ -1292,37 +1308,66 @@ export class HomeComponent {
   updateTimeSlots(date: any) {
     const activeTerritory = this.TerritoryData?.find((t: any) => t.IS_ACTIVE === 1);
     if (!activeTerritory) return;
-    const selectedDateMoment = moment(date, 'ddd, MMM D, YYYY');
-    if (!Array.isArray(this.updatedselectedService)) this.updatedselectedService = [];
+
+    const selectedDateMoment = (moment as any)(date, 'ddd, MMM D, YYYY');
+    if (!Array.isArray(this.updatedselectedService)) {
+      this.updatedselectedService = [];
+    }
     if (!this.timeSlots || this.timeSlots.length === 0) return;
-    const { serviceStart, serviceEnd } = this.getServiceTimeRange(selectedDateMoment);
-    if (!serviceStart || !serviceEnd || serviceStart.isAfter(serviceEnd)) {
-      this.timeSlots = this.timeSlots.map((period) => ({ ...period, times: { ...period.times, disabled: true } }));
+
+    const timeRange: any = this.getServiceTimeRange(selectedDateMoment);
+    const serviceStart = timeRange.serviceStart;
+    const serviceEnd = timeRange.serviceEnd;
+
+    if (!serviceStart || !serviceEnd || !serviceStart.isValid() || !serviceEnd.isValid() || serviceStart.isAfter(serviceEnd)) {
+      this.timeSlots = this.timeSlots.map((period) => ({
+        ...period,
+        times: { ...period.times, disabled: true }
+      }));
       return;
     }
+
     this.timeSlots = this.timeSlots.map((period) => {
-      const slotStart = moment(period.times.start, 'HH:mm');
-      const slotEnd = moment(period.times.end, 'HH:mm');
-      const isValid = (slotStart.isSameOrAfter(serviceStart) && slotEnd.isSameOrBefore(serviceEnd)) || serviceStart.isBetween(slotStart, slotEnd, null, '[)') || serviceEnd.isBetween(slotStart, slotEnd, null, '(]');
+      const slotStart = (moment as any)(period.times.start, 'HH:mm');
+      const slotEnd = (moment as any)(period.times.end, 'HH:mm');
+      const isValid = (slotStart.isSameOrAfter(serviceStart) && slotEnd.isSameOrBefore(serviceEnd)) ||
+        serviceStart.isBetween(slotStart, slotEnd, 'milliseconds', '[)') ||
+        serviceEnd.isBetween(slotStart, slotEnd, 'milliseconds', '(]');
       return { ...period, times: { ...period.times, disabled: !isValid } };
     });
   }
-  getServiceTimeRange(selectedDate: moment.Moment) {
+
+  getServiceTimeRange(selectedDate: any): { serviceStart: any; serviceEnd: any } {
     const activeTerritory = this.TerritoryData?.find((t: any) => t.IS_ACTIVE === 1);
     if (!activeTerritory) return { serviceStart: null, serviceEnd: null };
-    const startTimes = [...this.updatedselectedService.map((service: any) => moment(service.START_TIME || '00:00:01', 'HH:mm:ss')), moment(activeTerritory.START_TIME, 'HH:mm:ss')].filter((time) => time.isValid());
-    const endTimes = [...this.updatedselectedService.map((service: any) => moment(service.END_TIME || '23:59:59', 'HH:mm:ss')), moment(activeTerritory.END_TIME, 'HH:mm:ss')].filter((time) => time.isValid());
-    if (selectedDate.isSame(moment(), 'day')) {
+
+    const startTimes: any[] = [
+      ...this.updatedselectedService.map((service: any) => (moment as any)(service.START_TIME || '00:00:01', 'HH:mm:ss')),
+      (moment as any)(activeTerritory.START_TIME, 'HH:mm:ss')
+    ].filter((time) => time.isValid());
+
+    const endTimes: any[] = [
+      ...this.updatedselectedService.map((service: any) => (moment as any)(service.END_TIME || '23:59:59', 'HH:mm:ss')),
+      (moment as any)(activeTerritory.END_TIME, 'HH:mm:ss')
+    ].filter((time) => time.isValid());
+
+    if (selectedDate.isSame((moment as any)(), 'day')) {
       const maxPrepMinutes = this.updatedselectedService.reduce((maxTime: number, service: any) => {
-        const hours = service.T_PREPARATION_HOURS != null ? parseInt(service.T_PREPARATION_HOURS, 10) : service.PREPARATION_HOURS != null ? parseInt(service.PREPARATION_HOURS, 10) : 0;
-        const minutes = service.T_PREPARATION_MINUTES != null ? parseInt(service.T_PREPARATION_MINUTES, 10) : service.PREPARATION_MINUTES != null ? parseInt(service.PREPARATION_MINUTES, 10) : 0;
+        const hours = service.T_PREPARATION_HOURS != null ? parseInt(service.T_PREPARATION_HOURS, 10) : (service.PREPARATION_HOURS != null ? parseInt(service.PREPARATION_HOURS, 10) : 0);
+        const minutes = service.T_PREPARATION_MINUTES != null ? parseInt(service.T_PREPARATION_MINUTES, 10) : (service.PREPARATION_MINUTES != null ? parseInt(service.PREPARATION_MINUTES, 10) : 0);
         return Math.max(maxTime, hours * 60 + minutes);
       }, 0);
-      if (maxPrepMinutes > 0) startTimes.push(moment().add(maxPrepMinutes, 'minutes'));
+      if (maxPrepMinutes > 0) {
+        startTimes.push((moment as any)().add(maxPrepMinutes, 'minutes'));
+      }
     }
-    if (startTimes.length === 0 || endTimes.length === 0) return { serviceStart: null, serviceEnd: null };
-    const serviceStart = moment.max(startTimes);
-    const serviceEnd = moment.min(endTimes);
+
+    if (startTimes.length === 0 || endTimes.length === 0) {
+      return { serviceStart: null, serviceEnd: null };
+    }
+
+    const serviceStart = (moment as any).max(startTimes);
+    const serviceEnd = (moment as any).min(endTimes);
     this.MaxEndValue = serviceStart.format('hh:mm A');
     return { serviceStart, serviceEnd };
   }
@@ -1908,5 +1953,90 @@ export class HomeComponent {
         () => { this.message.error('Something went wrong. Please try again.'); }
       );
     } else { this.message.error('Job not found. Please try again.'); }
+  }
+  initHomePlaceholder() {
+    if (this.homePlaceholderInterval) {
+      clearInterval(this.homePlaceholderInterval);
+    }
+    if (this.PopularServices?.length > 0) {
+      this.homePlaceholderTexts = this.PopularServices
+        .map((s: any) => s.NAME)
+        .filter(Boolean);
+      this.homeCurrentPlaceholder = this.homePlaceholderTexts[0] || '';
+      this.homePlaceholderVisible = true;
+      this.startHomePlaceholderRotation();
+    }
+  }
+  startHomePlaceholderRotation() {
+    if (this.homePlaceholderInterval) {
+      clearInterval(this.homePlaceholderInterval);
+    }
+    this.homePlaceholderInterval = setInterval(() => {
+      this.homePlaceholderVisible = false;
+      setTimeout(() => {
+        const idx = this.homePlaceholderTexts.indexOf(this.homeCurrentPlaceholder);
+        this.homeCurrentPlaceholder =
+          this.homePlaceholderTexts[(idx + 1) % this.homePlaceholderTexts.length];
+        this.homePlaceholderVisible = true;
+      }, 300);
+    }, 1000);
+  }
+  homeGetServiceData() {
+    if (this.homeSearchLoading || !this.DefaultAddressArray?.TERRITORY_ID) return;
+    this.homeSearchLoading = true;
+    this.apiservice.getglobalServiceData(
+      0, 0, '', '', '', 'I', this.userID,
+      [this.DefaultAddressArray.TERRITORY_ID]
+    ).subscribe({
+      next: (data: any) => {
+        this.homeOptionsList = data.data.filter((item: any) =>
+          item['CATEGORY'] == 'Category' ||
+          item['CATEGORY'] == 'Service' ||
+          item['CATEGORY'] == 'SubCategory'
+        );
+        this.homeFilteredOptions = this.homeOptionsList;
+        this.homeSearchLoading = false;
+      },
+      error: () => { this.homeSearchLoading = false; }
+    });
+  }
+  homeFilterOptions() {
+    if (this.homeOptionsList.length === 0) {
+      this.homeGetServiceData();
+    }
+    if (this.homeSearchKeyword?.trim()) {
+      const keyword = this.homeSearchKeyword.trim().toLowerCase();
+      this.homeFilteredOptions = this.homeOptionsList
+        .map(category => ({
+          ...category,
+          MATCHED_RECORDS: (category.MATCHED_RECORDS || []).filter((record: any) =>
+            record.TITLE?.toLowerCase().includes(keyword) ||
+            record.CATEGORY?.toLowerCase().includes(keyword)
+          )
+        }))
+        .filter(category => category.MATCHED_RECORDS?.length > 0);
+    } else {
+      this.homeFilteredOptions = this.homeOptionsList;
+    }
+    this.homeShowOptionsList = true;
+  }
+  homeSelectOption(record: any) {
+    this.homeSearchKeyword = record.TITLE;
+    this.homeShowOptionsList = false;
+    if (record.CATEGORY === 'Category') {
+      sessionStorage.setItem('categoryidforsearch', record['DATA']['ID']);
+    } else if (record.CATEGORY === 'SubCategory') {
+      sessionStorage.setItem('categoryidforsearch', record['DATA']['CATEGORY_ID']);
+    } else if (record.CATEGORY === 'Service') {
+      sessionStorage.setItem('categoryidforsearch', record['DATA']['CATEGORY_ID']);
+      sessionStorage.setItem('categoryidforsearch22', record['DATA']['ID']);
+    }
+    sessionStorage.setItem('brandid', '');
+    this.router.navigateByUrl('/', { skipLocationChange: true }).then(() => {
+      this.router.navigate(['/services']);
+    });
+  }
+  homeOnBlur() {
+    setTimeout(() => { this.homeShowOptionsList = false; }, 500);
   }
 }
