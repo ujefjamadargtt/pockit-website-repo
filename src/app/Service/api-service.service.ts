@@ -3183,4 +3183,10 @@ export class ApiServiceService {
       { headers }
     );
   }
+  get androidDownloadUrl(): string {
+    if (this.commoncode === 'https://pockit.pockitengineers.com/auth' || this.commoncode === 'https://pn5m5nf6-9090.inc1.devtunnels.ms') {
+      return `${this.commoncode}/static/mobApps/Pockit_Customer.apk`;
+    }
+    return 'https://play.google.com/store/apps/details?id=com.pockitcust';
+  }
 }

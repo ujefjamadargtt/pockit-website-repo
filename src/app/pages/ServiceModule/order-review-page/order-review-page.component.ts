@@ -428,16 +428,16 @@ export class OrderReviewPageComponent {
         }
       });
     } else {
-      // ONLINE or WALLET with insufficient balance
       const isHybrid = this.selectedPaymentMethod === 'WALLET' && this.walletAmount < finalAmount;
-      const payableAmount = isHybrid ? (finalAmount - this.walletAmount) : finalAmount;
+      const payableAmount =  finalAmount;
       var dataForRzpOrder = {
         CART_ID: cartId,
         ORDER_ID: 0,
         CUSTOMER_ID: this.user?.ID,
         JOB_CARD_ID: 0,
         PAYMENT_FOR: "O",
-        amount: payableAmount * 100
+        amount: payableAmount * 100,
+        IS_WALLET_USED: isHybrid
       }
       this.apiservice.createRazorpayOrdertoRzp(dataForRzpOrder).subscribe((responserzp: any) => {
         if (responserzp?.code === 200 && !responserzp.data) {
